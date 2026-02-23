@@ -1,10 +1,11 @@
-import path from "node:path"
-import { defineConfig } from "prisma/config"
+/* eslint-disable @typescript-eslint/no-require-imports */
+const dotenv = require("dotenv")
+const path = require("node:path")
 
-// Load .env.local since Prisma CLI only reads .env by default
-import("dotenv").then((dotenv) =>
-    dotenv.config({ path: path.join(__dirname, ".env.local") })
-)
+dotenv.config({ path: path.join(__dirname, ".env.local") })
+dotenv.config({ path: path.join(__dirname, ".env") })
+
+import { defineConfig } from "prisma/config"
 
 export default defineConfig({
     earlyAccess: true,
