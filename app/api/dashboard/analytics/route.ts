@@ -84,8 +84,10 @@ export async function GET(request: NextRequest) {
             select: { id: true, phoneNumber: true, name: true },
         })
 
-        const topCustomersChart = topCustomerIds.map((id) => {
-            const customer = topCustomers.find((c) => c.id === id)
+        type CustomerInfo = { id: string; phoneNumber: string; name: string | null }
+
+        const topCustomersChart = topCustomerIds.map((id: string) => {
+            const customer = topCustomers.find((c: CustomerInfo) => c.id === id)
             return {
                 name: customer?.name || customer?.phoneNumber || "Unknown",
                 phoneNumber: customer?.phoneNumber || "",
