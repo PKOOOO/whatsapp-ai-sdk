@@ -15,7 +15,14 @@ export async function GET(request: NextRequest) {
         const startDate = new Date()
         startDate.setDate(startDate.getDate() - days)
 
-        const messages = await prisma.message.findMany({
+        type AnalyticsMessage = {
+            direction: string
+            type: string
+            createdAt: Date
+            customerId: string
+        }
+
+        const messages: AnalyticsMessage[] = await prisma.message.findMany({
             where: { createdAt: { gte: startDate } },
             select: {
                 direction: true,
@@ -33,7 +40,7 @@ export async function GET(request: NextRequest) {
             messagesPerDay[date.toISOString().split("T")[0]] = 0
         }
 
-        messages.forEach((msg) => {
+        messages.forEach((msg: AnalyticsMessage) => {
             const key = msg.createdAt.toISOString().split("T")[0]
             if (messagesPerDay[key] !== undefined) {
                 messagesPerDay[key]++
@@ -45,16 +52,16 @@ export async function GET(request: NextRequest) {
         )
 
         // Inbound vs Outbound
-        const inbound = messages.filter((m) => m.direction === "INBOUND").length
-        const outbound = messages.filter((m) => m.direction === "OUTBOUND").length
+        const inbound = messages.filter((m: AnalyticsMessage) => m.direction === "INBOUND").length
+        const outbound = messages.filter((m: AnalyticsMessage) => m.direction === "OUTBOUND").length
         const directionChart = [
             { name: "Inbound", value: inbound },
             { name: "Outbound", value: outbound },
         ]
 
         // Image vs Text
-        const textCount = messages.filter((m) => m.type === "TEXT").length
-        const imageCount = messages.filter((m) => m.type === "IMAGE").length
+        const textCount = messages.filter((m: AnalyticsMessage) => m.type === "TEXT").length
+        const imageCount = messages.filter((m: AnalyticsMessage) => m.type === "IMAGE").length
         const typeChart = [
             { name: "Text", value: textCount },
             { name: "Image", value: imageCount },
@@ -62,7 +69,7 @@ export async function GET(request: NextRequest) {
 
         // Top 10 most active customers
         const customerMessageCount: Record<string, number> = {}
-        messages.forEach((msg) => {
+        messages.forEach((msg: AnalyticsMessage) => {
             customerMessageCount[msg.customerId] =
                 (customerMessageCount[msg.customerId] || 0) + 1
         })

@@ -42,7 +42,7 @@ export async function GET() {
             messagesPerDay[key] = 0
         }
 
-        messages.forEach((msg) => {
+        messages.forEach((msg: { createdAt: Date }) => {
             const key = msg.createdAt.toISOString().split("T")[0]
             if (messagesPerDay[key] !== undefined) {
                 messagesPerDay[key]++
