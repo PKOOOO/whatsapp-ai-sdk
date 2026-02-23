@@ -1,18 +1,10 @@
 import { PrismaClient } from "@prisma/client"
-import { config } from "dotenv"
-import path from "node:path"
 
-// Load .env.local
-config({ path: path.join(__dirname, "..", ".env.local") })
-
-const prisma = new PrismaClient({
-    datasourceUrl: process.env.DATABASE_URL,
-})
+const prisma = new PrismaClient()
 
 async function main() {
     console.log("🌱 Seeding database...")
 
-    // Create default BotSettings
     const existing = await prisma.botSettings.findFirst()
     if (!existing) {
         await prisma.botSettings.create({
