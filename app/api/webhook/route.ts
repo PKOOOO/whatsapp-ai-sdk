@@ -24,8 +24,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
-        console.log(`[${new Date().toISOString()}] [WEBHOOK] ====== INCOMING WEBHOOK ======`)
-        console.log(`[${new Date().toISOString()}] [WEBHOOK] Full body: ${JSON.stringify(body).substring(0, 500)}`)
 
         const entry = body?.entry?.[0]
         const changes = entry?.changes?.[0]
@@ -33,24 +31,12 @@ export async function POST(request: NextRequest) {
         const message = value?.messages?.[0]
 
         if (!message) {
-            console.log(`[${new Date().toISOString()}] [WEBHOOK] No message in payload (status update or other event), skipping.`)
             return NextResponse.json({ status: "ok" }, { status: 200 })
         }
 
         const from = message.from
         const messageId = message.id
         const type = message.type
-
-        console.log(`[${new Date().toISOString()}] [WEBHOOK] 📩 Message received!`)
-        console.log(`[${new Date().toISOString()}] [WEBHOOK] From: ${from}`)
-        console.log(`[${new Date().toISOString()}] [WEBHOOK] Message ID: ${messageId}`)
-        console.log(`[${new Date().toISOString()}] [WEBHOOK] Type: ${type}`)
-
-        // Validate phone number format
-        if (from.startsWith("+")) {
-            console.warn(`[${new Date().toISOString()}] [WEBHOOK] ⚠️ Phone number starts with '+': ${from}. Should be without '+' sign.`)
-        }
-        console.log(`[${new Date().toISOString()}] [WEBHOOK] Phone number format check: length=${from.length}, startsWithPlus=${from.startsWith("+")}, value=${from}`)
 
         // Mark as read immediately
         await markAsRead(messageId)
@@ -68,7 +54,6 @@ export async function POST(request: NextRequest) {
                     name: contactName,
                 },
             })
-            console.log(`[${new Date().toISOString()}] [WEBHOOK] New customer created: ${customer.id}`)
         }
 
         // Find or create active conversation
@@ -89,7 +74,6 @@ export async function POST(request: NextRequest) {
 
         if (type === "text") {
             const textBody = message.text?.body || ""
-            console.log(`[${new Date().toISOString()}] [WEBHOOK] 📝 Text message: "${textBody.substring(0, 200)}"`)
 
             // Save inbound message
             await prisma.message.create({
@@ -105,32 +89,15 @@ export async function POST(request: NextRequest) {
             // Get AI response
             let aiResponse: string
             try {
-                console.log(`[${new Date().toISOString()}] [WEBHOOK] 🤖 Calling Claude...`)
                 aiResponse = await askClaude(textBody)
-                console.log(`[${new Date().toISOString()}] [WEBHOOK] 🤖 Claude response received! Length: ${aiResponse.length}`)
-                console.log(`[${new Date().toISOString()}] [WEBHOOK] 🤖 Claude response: "${aiResponse.substring(0, 300)}"`)
             } catch (error) {
-                console.error(
-                    `[${new Date().toISOString()}] [WEBHOOK] ❌ Claude error:`,
-                    error
-                )
+                console.error(`[${new Date().toISOString()}] Claude error:`, error)
                 aiResponse =
                     "Sorry, I'm having trouble right now. Please try again in a moment! 🙏"
             }
 
             // Send reply
-            console.log(`[${new Date().toISOString()}] [WEBHOOK] 📤 About to call sendTextMessage()...`)
-            console.log(`[${new Date().toISOString()}] [WEBHOOK] 📤 Sending to: ${from}`)
-            console.log(`[${new Date().toISOString()}] [WEBHOOK] 📤 Message: "${aiResponse.substring(0, 200)}"`)
-            try {
-                const sendResult = await sendTextMessage(from, aiResponse)
-                console.log(`[${new Date().toISOString()}] [WEBHOOK] ✅ sendTextMessage() completed successfully!`)
-                console.log(`[${new Date().toISOString()}] [WEBHOOK] ✅ Send result: ${JSON.stringify(sendResult)}`)
-            } catch (sendError: any) {
-                console.error(`[${new Date().toISOString()}] [WEBHOOK] ❌ sendTextMessage() FAILED!`)
-                console.error(`[${new Date().toISOString()}] [WEBHOOK] ❌ Send error: ${sendError?.message}`)
-                console.error(`[${new Date().toISOString()}] [WEBHOOK] ❌ Send error response: ${JSON.stringify(sendError?.response?.data)}`)
-            }
+            await sendTextMessage(from, aiResponse)
 
             // Save outbound message
             await prisma.message.create({
@@ -146,7 +113,6 @@ export async function POST(request: NextRequest) {
             const imageId = message.image?.id
             const caption = message.image?.caption || undefined
             const mimeType = message.image?.mime_type || "image/jpeg"
-            console.log(`[${new Date().toISOString()}] [WEBHOOK] 🖼️ Image message. ID: ${imageId}, caption: ${caption ?? "none"}`)
 
             let imageUrl = ""
             let base64Image = ""
@@ -154,12 +120,8 @@ export async function POST(request: NextRequest) {
             try {
                 imageUrl = await getMediaUrl(imageId)
                 base64Image = await downloadMedia(imageUrl)
-                console.log(`[${new Date().toISOString()}] [WEBHOOK] 🖼️ Image downloaded. Base64 length: ${base64Image.length}`)
             } catch (error) {
-                console.error(
-                    `[${new Date().toISOString()}] [WEBHOOK] ❌ Media download error:`,
-                    error
-                )
+                console.error(`[${new Date().toISOString()}] Media download error:`, error)
             }
 
             // Save inbound image message
@@ -178,38 +140,23 @@ export async function POST(request: NextRequest) {
             let aiResponse: string
             try {
                 if (base64Image) {
-                    console.log(`[${new Date().toISOString()}] [WEBHOOK] 🤖 Calling Claude with image...`)
                     aiResponse = await askClaudeWithImage(
                         base64Image,
                         mimeType,
                         caption
                     )
-                    console.log(`[${new Date().toISOString()}] [WEBHOOK] 🤖 Claude image response: "${aiResponse.substring(0, 300)}"`)
                 } else {
                     aiResponse =
                         "I received your image but couldn't process it. Could you try sending it again?"
                 }
             } catch (error) {
-                console.error(
-                    `[${new Date().toISOString()}] [WEBHOOK] ❌ Claude image error:`,
-                    error
-                )
+                console.error(`[${new Date().toISOString()}] Claude image error:`, error)
                 aiResponse =
                     "Sorry, I'm having trouble right now. Please try again in a moment! 🙏"
             }
 
             // Send reply
-            console.log(`[${new Date().toISOString()}] [WEBHOOK] 📤 About to call sendTextMessage() for image reply...`)
-            console.log(`[${new Date().toISOString()}] [WEBHOOK] 📤 Sending to: ${from}`)
-            try {
-                const sendResult = await sendTextMessage(from, aiResponse)
-                console.log(`[${new Date().toISOString()}] [WEBHOOK] ✅ sendTextMessage() completed successfully!`)
-                console.log(`[${new Date().toISOString()}] [WEBHOOK] ✅ Send result: ${JSON.stringify(sendResult)}`)
-            } catch (sendError: any) {
-                console.error(`[${new Date().toISOString()}] [WEBHOOK] ❌ sendTextMessage() FAILED!`)
-                console.error(`[${new Date().toISOString()}] [WEBHOOK] ❌ Send error: ${sendError?.message}`)
-                console.error(`[${new Date().toISOString()}] [WEBHOOK] ❌ Send error response: ${JSON.stringify(sendError?.response?.data)}`)
-            }
+            await sendTextMessage(from, aiResponse)
 
             // Save outbound message
             await prisma.message.create({
@@ -231,17 +178,8 @@ export async function POST(request: NextRequest) {
                 messageCount: { increment: type === "text" || type === "image" ? 2 : 0 },
             },
         })
-
-        console.log(`[${new Date().toISOString()}] [WEBHOOK] ====== WEBHOOK PROCESSING COMPLETE ======`)
-    } catch (error: any) {
-        console.error(
-            `[${new Date().toISOString()}] [WEBHOOK] ❌❌ UNHANDLED WEBHOOK ERROR:`,
-            error?.message
-        )
-        console.error(
-            `[${new Date().toISOString()}] [WEBHOOK] ❌❌ Stack:`,
-            error?.stack
-        )
+    } catch (error) {
+        console.error(`[${new Date().toISOString()}] Webhook error:`, error)
     }
 
     return NextResponse.json({ status: "ok" }, { status: 200 })

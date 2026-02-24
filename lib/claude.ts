@@ -34,7 +34,6 @@ export async function askClaudeWithImage(
         return "The bot is currently offline. Please try again later."
     }
 
-    // Build data URL from base64 + mimeType
     const dataUrl = `data:${mimeType};base64,${base64Image}`
 
     const { text: response } = await generateText({
@@ -47,7 +46,7 @@ export async function askClaudeWithImage(
                 content: [
                     {
                         type: "image",
-                        image: new URL(dataUrl),
+                        image: dataUrl,
                     },
                     {
                         type: "text",
