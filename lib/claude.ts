@@ -31,7 +31,7 @@ export async function askClaudeWithImage(
 ): Promise<string> {
     const settings = await getSettings()
     if (!settings.isActive) {
-        return "The bot is currently offline. Please try again later."
+        return "This bot is currently offline. Please try again later."
     }
 
     const dataUrl = `data:${mimeType};base64,${base64Image}`
